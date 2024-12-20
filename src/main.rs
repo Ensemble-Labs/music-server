@@ -1,4 +1,3 @@
-#![allow(unused, dead_code)]
 //! The music server backend for [insert name here].
 
 mod auth;
