@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
