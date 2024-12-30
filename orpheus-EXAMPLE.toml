@@ -1,2 +1,2 @@
 [server]
-data_path = "/Users/tahirchaudhry/Development/Rust/music-server/data-db"
+data_path = "/home/arch/.orpheus/"
