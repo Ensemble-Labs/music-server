@@ -1,7 +1,12 @@
 //! Module to manage the storage and retrieval of
 //! accounts to/from disk.
 
+use anyhow::{bail, Result};
 use dashmap::DashMap;
+use scrypt::{
+    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+    Scrypt,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
@@ -65,8 +70,27 @@ impl AccountsManager {
         std::fs::write(path, &encoded).expect("Failed to save to accounts DB path!");
     }
 
-    pub fn register_hashed(record: AccountRecord) {
-        todo!()
+    pub fn register_from_record(&self, record: AccountRecord) -> Result<()> {
+        let map = self.accounts.clone();
+        if !map.contains_key(&record.username) {
+            map.insert(record.username.clone(), record);
+            Ok(())
+        } else {
+            bail!("Account already exists!")
+        }
+    }
+
+    pub fn register(&self, username: String, password: String, is_admin: bool) -> Result<()> {
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Scrypt
+            .hash_password(password.as_bytes(), &salt)?
+            .to_string();
+        let record: AccountRecord = AccountRecord {
+            username,
+            password_hash,
+            is_admin,
+        };
+        self.register_from_record(record)
     }
 }
 
