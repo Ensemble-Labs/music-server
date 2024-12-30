@@ -9,6 +9,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 // import exports defined in `src/lib.rs`:
 use orpheus::responders;
 
@@ -18,6 +19,8 @@ const IP_ADDR: &str = "0.0.0.0:31078";
 #[tokio::main]
 async fn main() {
     let app = Router::new()
+        .layer(TraceLayer::new_for_http()) // makes debugging in async frameworks tear-free!
+        .layer(CorsLayer::permissive()) // idk what cors even does but it ruins my life
         .route("/", get(root_responder))
         .route("/create-account", get(async || StatusCode::BAD_REQUEST)) // explicitly disallow get requests as we need binary data
         .route("/create-account", post(responders::create_account));
