@@ -18,6 +18,7 @@ pub static CONFIG: LazyLock<Arc<config::Config>> = LazyLock::new(|| {
 // re-export commonly used types closer to crate root
 pub mod types {
     pub use crate::db::accounts::AccountRecord;
+    pub use crate::responders::BadRequestError;
 }
 
 // re-export all services for ease of use
