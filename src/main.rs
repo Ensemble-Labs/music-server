@@ -20,13 +20,19 @@ async fn main() {
         .layer(TraceLayer::new_for_http()) // makes debugging in async frameworks tear-free!
         .layer(CorsLayer::permissive()) // idk what cors even does but it ruins my life
         .route("/", get(root_responder))
-        .route("/create-account", get(async || StatusCode::BAD_REQUEST)) // explicitly disallow get requests as we need binary data
+        .route(
+            "/create-account",
+            get(async || StatusCode::METHOD_NOT_ALLOWED),
+        ) // explicitly disallow get requests as we need binary data
         .route("/create-account", post(responders::create_account));
 
     let listener = tokio::net::TcpListener::bind(IP_ADDR).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn root_responder() -> &'static str {
-    "Hello, world!"
+// async fn root_responder() -> &'static str {
+//     "Hello, world!"
+// }
+async fn root_responder() -> Result<(), StatusCode> {
+    Ok(())
 }
