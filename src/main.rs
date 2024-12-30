@@ -1,20 +1,25 @@
-//! The music server backend for [insert name here].
+//! The music server backend for the Orpheus project.
+//! The main.rs file contains the binary part of the application, i.e.
+//! the code for the main function and any relevant details.
 
 #![feature(try_blocks)]
 
-mod auth;
-mod db;
-mod responders;
+use axum::{
+    http::StatusCode,
+    routing::{get, post},
+    Router,
+};
+// import exports defined in `src/lib.rs`:
+use orpheus::responders;
 
-use axum::{Router, routing::get};
-
+// we want port 31078 over all interfaces (0.0.0.0)
 const IP_ADDR: &str = "0.0.0.0:31078";
 
 #[tokio::main]
 async fn main() {
     let app = Router::new()
-        // more routes later
         .route("/", get(root_responder))
+        .route("/create-account", get(async || StatusCode::BAD_REQUEST)) // explicitly disallow get requests as we need binary data
         .route("/create-account", post(responders::create_account));
 
     let listener = tokio::net::TcpListener::bind(IP_ADDR).await.unwrap();
