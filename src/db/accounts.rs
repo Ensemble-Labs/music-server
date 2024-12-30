@@ -26,6 +26,8 @@ pub struct AccountRecord {
     is_admin: bool,
 }
 
+/// A thread-safe in-memory account database. It is initialized by providing a path to
+/// a database file, one it will either create or read depending on the constructor used.
 pub struct AccountsManager {
     path: PathBuf,
     accounts: Arc<DashMap<String, AccountRecord>>,
@@ -37,8 +39,10 @@ unsafe impl Sync for AccountsManager {}
 impl AccountsManager {
     // Constructors //
     pub fn create(to_path: impl std::fmt::Display, map: DashMap<String, AccountRecord>) -> Self {
+        let path: PathBuf = PathBuf::from(to_path.to_string());
+        std::fs::write(&path, [0_u8; 0]).expect("Error writing to db file!");
         Self {
-            path: PathBuf::from(to_path.to_string()),
+            path,
             accounts: Arc::new(map),
         }
     }
