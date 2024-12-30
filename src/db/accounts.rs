@@ -12,7 +12,8 @@ use std::{
 ///
 /// TODO:
 /// - Consider changing to a frozen map
-pub static ACCOUNTS: LazyLock<AccountsManager> =
+#[allow(non_upper_case_globals)] // i like the "*Service" naming scheme, sue me
+pub static AccountService: LazyLock<AccountsManager> =
     LazyLock::new(|| todo!("a config module to store filedb path"));
 
 /// A small data struct to hold information about an account. Username is a duplicate
