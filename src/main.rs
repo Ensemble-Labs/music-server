@@ -1,8 +1,6 @@
-//! The music server backend for the Orpheus project.
-//! The main.rs file contains the binary part of the application, i.e.
+//! the music server backend for the Orpheus project.
+//! the main.rs file contains the binary part of the application, i.e.
 //! the code for the main function and any relevant details.
-
-#![feature(try_blocks)]
 
 use axum::{
     http::StatusCode,
