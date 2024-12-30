@@ -1,3 +1,6 @@
+//! The lib.rs file is mostly used to organize the crate's namespace and
+//! provide utility functions/macros.
+
 // Declare rust module tree
 pub mod auth;
 pub mod db;

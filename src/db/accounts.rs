@@ -12,7 +12,8 @@ use std::{
 ///
 /// TODO:
 /// - Consider changing to a frozen map
-pub static ACCOUNTS: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
+pub static ACCOUNTS: LazyLock<AccountsManager> =
+    LazyLock::new(|| todo!("a config module to store filedb path"));
 
 /// A small data struct to hold information about an account. Username is a duplicate
 /// field here despite also being used as the key to the HashMap.
