@@ -45,6 +45,10 @@ impl AccountsManager {
     // Constructors //
     pub fn create(to_path: impl std::fmt::Display, map: DashMap<String, AccountRecord>) -> Self {
         let path: PathBuf = PathBuf::from(to_path.to_string());
+        if let Some(p) = path.parent() {
+            std::fs::create_dir_all(p)
+                .expect("Failed to create data file path! Double check write permissions.");
+        }
         std::fs::write(&path, [0_u8; 0]).expect("Error writing to db file!");
         Self {
             path,
