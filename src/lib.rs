@@ -1,28 +1,21 @@
 //! The lib.rs file is the crate's library root and is used to organize
 //! the crate's namespace, hold unit tests, andprovide utility functions/macros.
 
-use std::sync::{Arc, LazyLock};
-
 // declare rust module tree
 pub mod auth;
 pub mod config;
 pub mod db;
 pub mod responders;
 
-pub static CONFIG: LazyLock<Arc<config::Config>> = LazyLock::new(|| {
-    Arc::new(
-        toml::from_str(include_str!("../orpheus-EXAMPLE.toml")).expect("Malformed `orpheus.toml`!"),
-    )
-});
-
 // re-export commonly used types closer to crate root
 pub mod types {
     pub use crate::db::accounts::AccountRecord;
-    pub use crate::responders::BadRequestError;
+    pub use crate::responders::RequestResult;
 }
 
 // re-export all services for ease of use
 pub mod services {
+    pub use crate::config::CONFIG as Config;
     pub use crate::db::accounts::AccountService;
 }
 
@@ -37,5 +30,19 @@ mod tests {
             .parse::<Table>()
             .unwrap();
         dbg!(cfg_toml);
+    }
+
+    #[test]
+    pub fn test_read_config() {
+        let cfg = crate::config::CONFIG.blocking_read();
+        dbg!(cfg.server().data_path());
+        let _ = dbg!(cfg);
+    }
+
+    #[test]
+    pub fn test_change_config() {
+        let mut cfg = crate::config::CONFIG.blocking_write();
+        cfg.server_mut().set_data_path("data_path".into());
+        std::fs::write("./orpheus-out.toml", cfg.output()).unwrap();
     }
 }
