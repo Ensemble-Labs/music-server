@@ -9,9 +9,11 @@ use scrypt::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    alloc::{alloc, Layout},
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Mutex},
 };
+use tracing::{debug, trace};
 
 use crate::services;
 
@@ -33,7 +35,7 @@ pub static AccountService: LazyLock<AccountsManager> = LazyLock::new(|| {
 
 /// A small data struct to hold information about an account. Username is a duplicate
 /// field here despite also being used as the key to the HashMap.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AccountRecord {
     username: String,
     password_hash: String,
@@ -45,11 +47,18 @@ pub struct AccountRecord {
 /// a database file, one it will either create or read depending on the constructor used.
 pub struct AccountsManager {
     path: PathBuf,
+    dirty: Mutex<bool>,
     accounts: Arc<DashMap<String, AccountRecord>>,
 }
 
 unsafe impl Send for AccountsManager {}
 unsafe impl Sync for AccountsManager {}
+
+impl AsRef<AccountsManager> for AccountsManager {
+    fn as_ref(&self) -> &AccountsManager {
+        self
+    }
+}
 
 impl AccountsManager {
     // Constructors //
@@ -62,6 +71,7 @@ impl AccountsManager {
 
         let s = Self {
             path,
+            dirty: Mutex::new(false),
             accounts: Arc::new(map),
         };
         s.save(); // test if writing crashes so the user doesn't find out when it's too late
@@ -85,14 +95,24 @@ impl AccountsManager {
 
         let new: Self = Self {
             path,
+            dirty: Mutex::new(false),
             accounts: Arc::new(accounts),
         };
+        trace!(
+            "Creating account manager with table: {:?}",
+            new.accounts.clone()
+        );
         new.save();
         new
     }
 
     // Methods //
     pub fn save(&self) {
+        *self.dirty.lock().unwrap() = false;
+        trace!(
+            "Saving accounts database with table: {:?}",
+            &self.accounts.clone()
+        );
         let encoded: Vec<u8> = bincode::serialize(self.accounts.as_ref())
             .expect("Failed to serialize accounts storage!");
         let path: &Path = self.path.as_ref();
@@ -100,8 +120,13 @@ impl AccountsManager {
     }
 
     pub fn register_from_record(&self, record: AccountRecord) -> Result<()> {
+        *self.dirty.lock().unwrap() = true;
         let map = self.accounts.clone();
         if !map.contains_key(&record.username) {
+            debug!(
+                "Registering account {{ username: {}, password: {} }}",
+                &record.username, &record.password_hash
+            );
             map.insert(record.username.clone(), record);
             Ok(())
         } else {
@@ -121,6 +146,14 @@ impl AccountsManager {
         };
         self.register_from_record(record)
     }
+
+    pub fn is_dirty(&self) -> bool {
+        *self.dirty.lock().unwrap()
+    }
+
+    /// This function does nothing. It exists only to force the lazy initialization
+    /// of the [LazyLock] holding the global [AccountsManager].
+    pub fn verify(&self) {}
 }
 
 /// # Why manually implement drop for this type?
