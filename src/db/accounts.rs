@@ -136,6 +136,7 @@ impl AccountsManager {
 
     /// Uploads an account record directly to the map, using a clone of
     /// its `username` field as the key.
+    #[cfg(target_os = "none")] // unused function
     pub fn register_from_record(&self, record: AccountRecord) -> Result<()> {
         *self.dirty.lock().unwrap() = true;
         let map = self.accounts.clone();
@@ -151,21 +152,41 @@ impl AccountsManager {
         }
     }
 
+    /// Registers from record without checking if it already exists. Used only
+    /// in the [AccountsManager::register] function to skip redundant checking.
+    fn register_from_record_unchecked(&self, record: AccountRecord) {
+        *self.dirty.lock().unwrap() = true;
+        let map = self.accounts.clone();
+        debug!(
+            "Registering account {{ username: {}, password: {} }}",
+            &record.username, &record.password_hash
+        );
+        map.insert(record.username.clone(), record);
+    }
+
     /// Creates a new entry in the account registry with:
     /// 1. the username as the key,
     /// 2. and an [AccountRecord] containing a clone of the username,
     ///    the password, and whether or not the account is an admin.
     pub fn register(&self, username: String, password: String, is_admin: bool) -> Result<()> {
         let salt = SaltString::generate(&mut OsRng);
-        let password_hash = Scrypt
-            .hash_password(password.as_bytes(), &salt)?
-            .to_string();
+        let map_ref = self.accounts.clone();
+        let password_hash = if !map_ref.contains_key(&username) {
+            Scrypt
+                .hash_password(password.as_bytes(), &salt)?
+                .to_string()
+        } else {
+            tracing::error!("Failed to register already-registered account \"{username}\"!");
+            bail!("Account already exists!")
+        };
+        drop(map_ref); // drop the reference to prevent deadlocks during registration
         let record: AccountRecord = AccountRecord {
             username,
             password_hash,
             is_admin,
         };
-        self.register_from_record(record)
+        self.register_from_record_unchecked(record);
+        Ok(())
     }
 
     /// Attempts to verify the provided password against the entry for the
