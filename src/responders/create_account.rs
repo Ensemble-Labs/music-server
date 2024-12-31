@@ -14,6 +14,11 @@ struct CreateAccount {
 
 pub async fn create_account(bytes: Bytes) -> Result<(), BadRequestError> {
     let request_info: CreateAccount = bincode::deserialize(&bytes)?;
+    tracing::debug!(
+        "creating account {{ username: {}, password: {} }}",
+        &request_info.username,
+        &request_info.password
+    );
     AccountService.register(
         request_info.username,
         request_info.password,

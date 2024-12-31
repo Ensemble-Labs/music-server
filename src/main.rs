@@ -8,6 +8,7 @@ use axum::{
     Router,
 };
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tracing::{info, Level};
 // import exports defined in `src/lib.rs`:
 use orpheus::responders;
 
@@ -16,6 +17,12 @@ const IP_ADDR: &str = "0.0.0.0:31078";
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        .with_level(true)
+        // .without_time()
+        .init();
+
     let app = Router::new()
         .layer(TraceLayer::new_for_http()) // makes debugging in async frameworks tear-free!
         .layer(CorsLayer::permissive()) // idk what cors even does but it ruins my life
@@ -27,12 +34,13 @@ async fn main() {
         .route("/create-account", post(responders::create_account));
 
     let listener = tokio::net::TcpListener::bind(IP_ADDR).await.unwrap();
+    info!("Listening on {}...", IP_ADDR);
     axum::serve(listener, app).await.unwrap();
+    info!("Exiting...");
 }
 
-// async fn root_responder() -> &'static str {
-//     "Hello, world!"
-// }
 async fn root_responder() -> Result<(), StatusCode> {
+    tracing::debug!("root response");
+    tracing::debug!("root response 2");
     Ok(())
 }
