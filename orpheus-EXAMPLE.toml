@@ -1,2 +1,2 @@
 [server]
-data_path = "/home/arch/.orpheus/data-db"
+account_data_path = "/home/arch/.orpheus/account-data"

@@ -13,13 +13,23 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
+use crate::services;
+
 /// A global concurrent hashmap storing a list of all accounts read in from disk.
 ///
 /// TODO:
 /// - Consider changing to a frozen map
 #[allow(non_upper_case_globals)] // i like the "*Service" naming scheme, sue me
-pub static AccountService: LazyLock<AccountsManager> =
-    LazyLock::new(|| todo!("a config module to store filedb path"));
+pub static AccountService: LazyLock<AccountsManager> = LazyLock::new(|| {
+    let data_path = PathBuf::from(
+        services::Config
+            .try_read()
+            .unwrap()
+            .server()
+            .account_data_path(),
+    );
+    AccountsManager::from_path(data_path)
+});
 
 /// A small data struct to hold information about an account. Username is a duplicate
 /// field here despite also being used as the key to the HashMap.
@@ -49,21 +59,36 @@ impl AccountsManager {
             std::fs::create_dir_all(p)
                 .expect("Failed to create data file path! Double check write permissions.");
         }
-        std::fs::write(&path, [0_u8; 0]).expect("Error writing to db file!");
-        Self {
+
+        let s = Self {
             path,
             accounts: Arc::new(map),
-        }
+        };
+        s.save(); // test if writing crashes so the user doesn't find out when it's too late
+        s
     }
 
-    pub fn at(path: PathBuf) -> Self {
-        let bytes: Vec<u8> = std::fs::read(&path).expect("Failed to read accounts DB path!");
-        let accounts: DashMap<String, AccountRecord> =
-            bincode::deserialize(&bytes).expect("Accounts database file corrupted!");
-        Self {
+    pub fn from_path(path: PathBuf) -> Self {
+        if let Some(p) = path.parent() {
+            std::fs::create_dir_all(p)
+                .expect("Failed to create data file path! Double check write permissions.");
+        }
+
+        let accounts: DashMap<String, AccountRecord> = if !path.exists() {
+            DashMap::new()
+        } else {
+            let contents: String =
+                std::fs::read_to_string(&path).expect("Failed to read data file!");
+            bincode::deserialize(contents.as_bytes())
+                .expect("Failed to deserialized account data file!")
+        };
+
+        let new: Self = Self {
             path,
             accounts: Arc::new(accounts),
-        }
+        };
+        new.save();
+        new
     }
 
     // Methods //

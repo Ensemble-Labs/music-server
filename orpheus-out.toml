@@ -1,2 +1,2 @@
 [server]
-data_path = "data_path"
+account_data_path = "data_path"
