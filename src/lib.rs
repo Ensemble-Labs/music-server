@@ -10,7 +10,6 @@ pub mod responders;
 // re-export commonly used types closer to crate root
 pub mod types {
     pub use crate::db::accounts::AccountRecord;
-    pub use crate::responders::RequestResult;
 }
 
 // re-export all services for ease of use
@@ -35,14 +34,14 @@ mod tests {
     #[test]
     pub fn test_read_config() {
         let cfg = crate::config::CONFIG.blocking_read();
-        dbg!(cfg.server().data_path());
+        dbg!(cfg.server().account_data_path());
         let _ = dbg!(cfg);
     }
 
     #[test]
     pub fn test_change_config() {
         let mut cfg = crate::config::CONFIG.blocking_write();
-        cfg.server_mut().set_data_path("data_path".into());
+        cfg.server_mut().set_account_data_path("data_path".into());
         std::fs::write("./orpheus-out.toml", cfg.output()).unwrap();
     }
 }
