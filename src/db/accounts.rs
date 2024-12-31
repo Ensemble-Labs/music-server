@@ -4,12 +4,11 @@
 use anyhow::{bail, Result};
 use dashmap::DashMap;
 use scrypt::{
-    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Scrypt,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    alloc::{alloc, Layout},
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
 };
@@ -41,6 +40,20 @@ pub struct AccountRecord {
     password_hash: String,
     /// can the user manage the server (i.e. create new accounts?)
     is_admin: bool,
+}
+
+impl AccountRecord {
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn password_hash(&self) -> &str {
+        &self.password_hash
+    }
+
+    pub fn is_admin(&self) -> bool {
+        self.is_admin
+    }
 }
 
 /// A thread-safe in-memory account database. It is initialized by providing a path to
@@ -107,6 +120,8 @@ impl AccountsManager {
     }
 
     // Methods //
+    /// Unmarks the struct as dirty and saves the entire contents
+    /// to the file path provided on creation of the struct.
     pub fn save(&self) {
         *self.dirty.lock().unwrap() = false;
         trace!(
@@ -119,6 +134,8 @@ impl AccountsManager {
         std::fs::write(path, &encoded).expect("Failed to save to accounts DB path!");
     }
 
+    /// Uploads an account record directly to the map, using a clone of
+    /// its `username` field as the key.
     pub fn register_from_record(&self, record: AccountRecord) -> Result<()> {
         *self.dirty.lock().unwrap() = true;
         let map = self.accounts.clone();
@@ -134,6 +151,10 @@ impl AccountsManager {
         }
     }
 
+    /// Creates a new entry in the account registry with:
+    /// 1. the username as the key,
+    /// 2. and an [AccountRecord] containing a clone of the username,
+    ///    the password, and whether or not the account is an admin.
     pub fn register(&self, username: String, password: String, is_admin: bool) -> Result<()> {
         let salt = SaltString::generate(&mut OsRng);
         let password_hash = Scrypt
@@ -145,6 +166,22 @@ impl AccountsManager {
             is_admin,
         };
         self.register_from_record(record)
+    }
+
+    /// Attempts to verify the provided password against the entry for the
+    /// username provided. This function will either return:
+    /// - `Some(true)` if the username and password are both valid and correct
+    /// - `Some(false)` if the username is registered, but the password is incorrect
+    /// - `None` if the username is not registered.
+    ///
+    /// Note that this function can also return `None` if the password hash fails to
+    /// be read into the password hash format, however this shouldn't happen in
+    /// practice and most likely doesn't need to be accounted for.
+    pub fn login(&self, username: &str, password: &str) -> Option<bool> {
+        let map = self.accounts.clone();
+        let entry = map.get(username)?;
+        let hash = PasswordHash::new(entry.value().password_hash()).ok()?;
+        Some(Scrypt.verify_password(password.as_bytes(), &hash).is_ok())
     }
 
     pub fn is_dirty(&self) -> bool {
