@@ -2,8 +2,8 @@ mod create_account;
 use axum::{http::StatusCode, response::IntoResponse};
 pub use create_account::create_account;
 
-// create custom error type that will return
-pub struct BadRequestError(anyhow::Error);
+// A custom error type that will return bad request when returned.
+pub struct BadRequestError;
 
 impl IntoResponse for BadRequestError {
     fn into_response(self) -> axum::response::Response {
@@ -15,7 +15,7 @@ impl<E> From<E> for BadRequestError
 where
     E: Into<anyhow::Error>,
 {
-    fn from(err: E) -> Self {
-        Self(err.into())
+    fn from(_: E) -> Self {
+        Self
     }
 }
