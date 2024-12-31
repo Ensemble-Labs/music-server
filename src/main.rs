@@ -12,44 +12,51 @@ use axum::{
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{info, trace, Level};
 // import exports defined in `src/lib.rs`:
-use orpheus::{responders, services::AccountService};
-
-// we want port 31078 over all interfaces (0.0.0.0)
-const IP_ADDR: &str = "0.0.0.0:31078";
+use orpheus::{
+    responders,
+    services::{self, AccountService},
+};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
-        .with_level(true)
-        // .without_time()
+    tracing_subscriber::fmt() // set up global tracing
+        .with_max_level(Level::TRACE) // set maximum log level to be outputted
+        .with_level(true) // show level in output
+        .without_time() // remove timestamp from log messages
         .init();
 
-    AccountService.verify();
+    AccountService.verify(); // Load account service ahead of time
+    let lock = services::Config.try_read().unwrap(); // gain a read lock over config temporarily
+    let port: &str = lock.server().bind_address(); // obtain port to bind to from Config service
+
     let app = Router::new()
         .layer(TraceLayer::new_for_http()) // makes debugging in async frameworks tear-free!
         .layer(CorsLayer::permissive()) // idk what cors even does but it ruins my life
-        .route("/", get(root_responder))
+        .route("/", get(root_responder)) // mostly to test logging and firewalls
         .route(
             "/create-account",
-            get(async || StatusCode::METHOD_NOT_ALLOWED),
-        ) // explicitly disallow get requests as we need binary data
+            get(async || StatusCode::METHOD_NOT_ALLOWED), // explicitly disallow get requests as we need binary data
+        )
         .route("/create-account", post(responders::create_account));
 
     std::thread::spawn(|| loop {
-        // automatically save accounts structs if needed
+        // spawn a separate thread to infinitely loop and save registry if necessary
         let account_service = AccountService.as_ref();
         if account_service.is_dirty() {
+            // if account registry changed since last write
             trace!("accounts service is marked dirty, autosaving...");
             account_service.save();
         }
         std::thread::sleep(Duration::from_secs(1));
     });
 
-    let listener = tokio::net::TcpListener::bind(IP_ADDR).await.unwrap();
-    info!("Listening on {}...", IP_ADDR);
+    let listener = tokio::net::TcpListener::bind(port)
+        .await
+        .unwrap_or_else(|_| panic!("Failed to bind to address {port}!"));
+    info!("Listening on {}...", port);
+    drop(lock);
     axum::serve(listener, app).await.unwrap();
-    info!("Exiting...");
+    info!("Exiting gracefully...");
 }
 
 async fn root_responder() -> Result<(), StatusCode> {

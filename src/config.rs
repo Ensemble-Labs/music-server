@@ -42,6 +42,7 @@ impl Config {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerConfig {
     account_data_path: String,
+    bind_address: String,
 }
 
 impl ServerConfig {
@@ -51,6 +52,10 @@ impl ServerConfig {
 
     pub fn set_account_data_path(&mut self, data_path: String) {
         self.account_data_path = data_path;
+    }
+
+    pub fn bind_address(&self) -> &str {
+        &self.bind_address
     }
 }
 
