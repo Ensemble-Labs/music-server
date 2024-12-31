@@ -574,6 +574,7 @@ dependencies = [
  "bincode",
  "dashmap",
  "dirs",
+ "log",
  "rayon",
  "scrypt",
  "serde",
