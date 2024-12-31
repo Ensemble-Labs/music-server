@@ -21,6 +21,9 @@ pub mod services {
 // unit testing
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
+    use crate::services::AccountService;
     use toml::Table;
 
     #[test]
@@ -43,5 +46,13 @@ mod tests {
         let mut cfg = crate::config::CONFIG.blocking_write();
         cfg.server_mut().set_account_data_path("data_path".into());
         std::fs::write("./orpheus-out.toml", cfg.output()).unwrap();
+    }
+
+    #[test]
+    pub fn bench_saving_accounts() {
+        AccountService.verify();
+        let t: Instant = Instant::now();
+        AccountService.save();
+        println!("{:?}", t.elapsed());
     }
 }

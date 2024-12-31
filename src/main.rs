@@ -10,23 +10,25 @@ use axum::{
     Router,
 };
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{info, trace, Level};
+use tracing::{debug, info, Level};
 // import exports defined in `src/lib.rs`:
 use orpheus::{
     responders,
-    services::{self, AccountService},
+    services::{AccountService, Config},
 };
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt() // set up global tracing
+        // note that tracing doesn't even get compiled in release mode so no need
+        // to optimize this setting
         .with_max_level(Level::TRACE) // set maximum log level to be outputted
-        .with_level(true) // show level in output
+        .with_level(true) // show log level in output
         .without_time() // remove timestamp from log messages
         .init();
 
     AccountService.verify(); // Load account service ahead of time
-    let lock = services::Config.try_read().unwrap(); // gain a read lock over config temporarily
+    let lock = Config.try_read().unwrap(); // gain a read lock over config temporarily
     let port: &str = lock.server().bind_address(); // obtain port to bind to from Config service
 
     let app = Router::new()
@@ -44,7 +46,7 @@ async fn main() {
         let account_service = AccountService.as_ref();
         if account_service.is_dirty() {
             // if account registry changed since last write
-            trace!("accounts service is marked dirty, autosaving...");
+            debug!("accounts service is marked dirty, autosaving...");
             account_service.save();
         }
         std::thread::sleep(Duration::from_secs(1));
