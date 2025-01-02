@@ -24,10 +24,10 @@ use crate::services;
 pub static AccountService: LazyLock<AccountsManager> = LazyLock::new(|| {
     let data_path = PathBuf::from(
         services::Config
-            .try_read()
-            .unwrap()
+            .try_read() // we immediately try to acquire the lock as this is startup
+            .unwrap() // immediately unwrap said lock since nothing else is locking yet
             .server()
-            .account_data_path(),
+            .account_data_path(), // see key [server.account_data_path] in `orpheus.toml`
     );
     AccountsManager::from_path(data_path)
 });
@@ -42,19 +42,7 @@ pub struct AccountRecord {
     is_admin: bool,
 }
 
-impl AccountRecord {
-    pub fn username(&self) -> &str {
-        &self.username
-    }
-
-    pub fn password_hash(&self) -> &str {
-        &self.password_hash
-    }
-
-    pub fn is_admin(&self) -> bool {
-        self.is_admin
-    }
-}
+crate::make_getters!(AccountRecord, username: String, password_hash: String, is_admin: bool);
 
 /// A thread-safe in-memory account database. It is initialized by providing a path to
 /// a database file, one it will either create or read depending on the constructor used.
@@ -111,10 +99,7 @@ impl AccountsManager {
             dirty: Mutex::new(false),
             accounts: Arc::new(accounts),
         };
-        trace!(
-            "Creating account manager with table: {:?}",
-            new.accounts.clone()
-        );
+        trace!("Creating account manager with table: {:?}", new.accounts);
         new.save();
         new
     }
@@ -124,10 +109,7 @@ impl AccountsManager {
     /// to the file path provided on creation of the struct.
     pub fn save(&self) {
         *self.dirty.lock().unwrap() = false;
-        trace!(
-            "Saving accounts database with table: {:?}",
-            &self.accounts.clone()
-        );
+        trace!("Saving accounts database with table: {:?}", self.accounts);
         let encoded: Vec<u8> = bincode::serialize(self.accounts.as_ref())
             .expect("Failed to serialize accounts storage!");
         let path: &Path = self.path.as_ref();
