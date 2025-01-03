@@ -5,7 +5,7 @@ use chrono::prelude::*;
 use papaya::HashMap;
 use uuid::Uuid;
 
-/// global state holding a list of all current connected sessions
+/// global variable holding the singleton instance of [AuthManager].
 pub static SESSIONS: LazyLock<AuthManager> = LazyLock::new(AuthManager::start);
 
 /// Holds information about a logged in account during its
@@ -34,11 +34,12 @@ impl AccountSession {
     }
 }
 
-/// a global authentication manager which essentially
-/// acts as an always-running service providing account
-/// registration and lookup.
+/// A global authentication manager which essentially acts as an
+/// always-running service providing account registration and lookup.
 pub struct AuthManager {
+    /// A hash table mapping session IDs to their respective account records.
     sessions: Arc<HashMap<Uuid, AccountSession>>,
+    /// A hash table mapping logged-in users' names to their session IDs.
     session_ids: Arc<HashMap<String, Uuid>>,
 }
 

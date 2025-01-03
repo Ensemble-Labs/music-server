@@ -16,7 +16,7 @@ use tracing::{debug, trace};
 
 use crate::services;
 
-/// A global concurrent hash-table storing a list of all accounts read in from disk.
+/// Global variable holding the singleton instance of [AccountsManager].
 ///
 /// TODO:
 /// - Consider changing to a frozen map
@@ -52,6 +52,8 @@ pub struct AccountsManager {
     accounts: Arc<HashMap<String, AccountRecord>>,
 }
 
+// Explicitly mark [AccountsManager] as thread-safe since all operations
+// are behind [Arc]s and thread-safe structs.
 unsafe impl Send for AccountsManager {}
 unsafe impl Sync for AccountsManager {}
 
@@ -64,9 +66,9 @@ impl AsRef<AccountsManager> for AccountsManager {
 impl AccountsManager {
     // Constructors //
     pub fn create(to_path: impl std::fmt::Display, map: HashMap<String, AccountRecord>) -> Self {
-        let path: PathBuf = PathBuf::from(to_path.to_string());
+        let path: PathBuf = PathBuf::from(to_path.to_string()); // convert generic parameter to [String]
         if let Some(p) = path.parent() {
-            std::fs::create_dir_all(p)
+            std::fs::create_dir_all(p) // make all necessary directories to create data file
                 .expect("Failed to create data file path! Double check write permissions.");
         }
 
@@ -81,7 +83,7 @@ impl AccountsManager {
 
     pub fn from_path(path: PathBuf) -> Self {
         if let Some(p) = path.parent() {
-            std::fs::create_dir_all(p)
+            std::fs::create_dir_all(p) // make all necessary directories to create data file
                 .expect("Failed to create data file path! Double check write permissions.");
         }
 
@@ -106,7 +108,7 @@ impl AccountsManager {
     /// Unmarks the struct as dirty and saves the entire contents
     /// to the file path provided on creation of the struct.
     pub fn save(&self) {
-        *self.dirty.lock().unwrap() = false;
+        *self.dirty.lock().unwrap() = false; // set self.dirty to false
         trace!("Saving accounts database with table: {:?}", self.accounts);
         let encoded: Vec<u8> =
             pot::to_vec(self.accounts.as_ref()).expect("Failed to serialize accounts storage!");
@@ -116,16 +118,16 @@ impl AccountsManager {
 
     /// Uploads an account record directly to the map, using a clone of
     /// its `username` field as the key.
-    #[cfg(target_os = "none")] // unused function
     pub fn register_from_record(&self, record: AccountRecord) -> Result<()> {
         *self.dirty.lock().unwrap() = true;
-        let map = self.accounts.clone();
+        let amap = self.accounts.clone(); // obtain atomic reference to map
+        let map = amap.pin(); // lock map's memory from being freed
         if !map.contains_key(&record.username) {
             debug!(
                 "Registering account {{ username: {}, password: {} }}",
                 &record.username, &record.password_hash
             );
-            map.pin().insert(record.username.clone(), record);
+            map.insert(record.username.clone(), record);
             Ok(())
         } else {
             bail!("Account already exists!")
@@ -149,17 +151,17 @@ impl AccountsManager {
     /// 2. and an [AccountRecord] containing a clone of the username,
     ///    the password, and whether or not the account is an admin.
     pub fn register(&self, username: String, password: String, is_admin: bool) -> Result<()> {
-        let salt = SaltString::generate(&mut OsRng);
-        let map = self.accounts.clone();
+        let salt = SaltString::generate(&mut OsRng); // generate salt for the password hash
+        let map = self.accounts.clone(); // obtain reference to map
         let password_hash = if !map.pin().contains_key(&username) {
-            Scrypt
+            Scrypt // return newly hashed password if not already registered
                 .hash_password(password.as_bytes(), &salt)?
                 .to_string()
         } else {
             tracing::error!("Failed to register already-registered account \"{username}\"!");
-            bail!("Account already exists!")
+            bail!("Account already exists!") // error on existing account
         };
-        drop(map); // drop our reference to map as next function will ref it
+        drop(map); // drop our reference to map as next function will reference it
         let record: AccountRecord = AccountRecord {
             username,
             password_hash,
@@ -179,10 +181,10 @@ impl AccountsManager {
     /// be read into the password hash format, however this shouldn't happen in
     /// practice and most likely doesn't need to be accounted for.
     pub fn login(&self, username: &str, password: &str) -> Option<bool> {
-        let amap = self.accounts.clone();
-        let map = amap.pin();
-        let entry = map.get(username)?;
-        let hash = PasswordHash::new(entry.password_hash()).ok()?;
+        let amap = self.accounts.clone(); // obtain atomic reference to map
+        let map = amap.pin(); // lock map's memory from being freed
+        let record = map.get(username)?;
+        let hash = PasswordHash::new(record.password_hash()).ok()?; // try parsing stored hash
         Some(Scrypt.verify_password(password.as_bytes(), &hash).is_ok())
     }
 
