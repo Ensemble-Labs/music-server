@@ -63,6 +63,5 @@ async fn main() {
 
 async fn root_responder() -> Result<(), StatusCode> {
     tracing::debug!("root response");
-    tracing::debug!("root response 2");
     Ok(())
 }

@@ -2,7 +2,6 @@ use std::sync::{Arc, LazyLock};
 
 use crate::types::AccountRecord;
 use chrono::prelude::*;
-use dashmap::DashMap;
 use papaya::HashMap;
 use uuid::Uuid;
 
@@ -28,6 +27,10 @@ impl AccountSession {
 
     pub fn expires(&self) -> DateTime<Utc> {
         self.expires
+    }
+
+    pub fn is_expired(&self) -> bool {
+        self.started() >= self.expires()
     }
 }
 

@@ -16,7 +16,7 @@ use tracing::{debug, trace};
 
 use crate::services;
 
-/// A global concurrent hashmap storing a list of all accounts read in from disk.
+/// A global concurrent hash-table storing a list of all accounts read in from disk.
 ///
 /// TODO:
 /// - Consider changing to a frozen map

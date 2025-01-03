@@ -26,7 +26,7 @@ pub fn get_accdb_file() -> &'static Path {
 }
 
 pub fn write_accdb(buf: &impl Serialize) -> anyhow::Result<()> {
-    let encoded: Vec<u8> = bincode::serialize(buf)?;
+    let encoded: Vec<u8> = pot::to_vec(buf)?;
     let path: &'static Path = DB_FILE_PATH.as_ref();
     std::fs::write(path, &encoded)?;
     Ok(())
