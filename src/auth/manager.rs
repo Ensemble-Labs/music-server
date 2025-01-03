@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock};
 use crate::types::AccountRecord;
 use chrono::prelude::*;
 use dashmap::DashMap;
+use papaya::HashMap;
 use uuid::Uuid;
 
 /// global state holding a list of all current connected sessions
@@ -34,8 +35,8 @@ impl AccountSession {
 /// acts as an always-running service providing account
 /// registration and lookup.
 pub struct AuthManager {
-    sessions: Arc<DashMap<Uuid, AccountSession>>,
-    session_ids: Arc<DashMap<String, Uuid>>,
+    sessions: Arc<HashMap<Uuid, AccountSession>>,
+    session_ids: Arc<HashMap<String, Uuid>>,
 }
 
 // Mark types as safe to send since all methods use thread-safe
@@ -47,21 +48,22 @@ impl AuthManager {
     // Constructor //
     pub fn start() -> Self {
         Self {
-            sessions: Arc::new(DashMap::new()),
-            session_ids: Arc::new(DashMap::new()),
+            sessions: Arc::new(HashMap::new()),
+            session_ids: Arc::new(HashMap::new()),
         }
     }
 
     // Methods //
-    pub fn register_new_session(&self, session: AccountSession) -> Option<AccountSession> {
+    pub fn register_new_session(&self, session: AccountSession) {
         let uuid: Uuid = uuid::Uuid::new_v4();
-        self.sessions.clone().insert(uuid, session)
+        self.sessions.clone().pin().insert(uuid, session);
     }
 
     pub fn authenticate(&self, username: &str, uuid: &Uuid) -> bool {
         self.session_ids
             .clone()
+            .pin()
             .get(username)
-            .is_some_and(|u| u.value() == uuid)
+            .is_some_and(|u| u == uuid)
     }
 }

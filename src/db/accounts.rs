@@ -125,7 +125,7 @@ impl AccountsManager {
                 "Registering account {{ username: {}, password: {} }}",
                 &record.username, &record.password_hash
             );
-            map.insert(record.username.clone(), record);
+            map.pin().insert(record.username.clone(), record);
             Ok(())
         } else {
             bail!("Account already exists!")
