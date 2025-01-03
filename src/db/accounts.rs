@@ -88,10 +88,8 @@ impl AccountsManager {
         let accounts: HashMap<String, AccountRecord> = if !path.exists() {
             HashMap::new()
         } else {
-            let contents: String =
-                std::fs::read_to_string(&path).expect("Failed to read data file!");
-            bincode::deserialize(contents.as_bytes())
-                .expect("Failed to deserialized account data file!")
+            let contents: Vec<u8> = std::fs::read(&path).expect("Failed to read data file!");
+            pot::from_slice(contents.as_slice()).expect("Failed to deserialized account data file!")
         };
 
         let new: Self = Self {
@@ -110,8 +108,8 @@ impl AccountsManager {
     pub fn save(&self) {
         *self.dirty.lock().unwrap() = false;
         trace!("Saving accounts database with table: {:?}", self.accounts);
-        let encoded: Vec<u8> = bincode::serialize(self.accounts.as_ref())
-            .expect("Failed to serialize accounts storage!");
+        let encoded: Vec<u8> =
+            pot::to_vec(self.accounts.as_ref()).expect("Failed to serialize accounts storage!");
         let path: &Path = self.path.as_ref();
         std::fs::write(path, &encoded).expect("Failed to save to accounts DB path!");
     }
