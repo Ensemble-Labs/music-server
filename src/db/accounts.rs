@@ -2,7 +2,7 @@
 //! accounts to/from disk.
 
 use anyhow::{bail, Result};
-use dashmap::DashMap;
+use papaya::HashMap;
 use scrypt::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Scrypt,
@@ -49,7 +49,7 @@ crate::make_getters!(AccountRecord, username: String, password_hash: String, is_
 pub struct AccountsManager {
     path: PathBuf,
     dirty: Mutex<bool>,
-    accounts: Arc<DashMap<String, AccountRecord>>,
+    accounts: Arc<HashMap<String, AccountRecord>>,
 }
 
 unsafe impl Send for AccountsManager {}
@@ -63,7 +63,7 @@ impl AsRef<AccountsManager> for AccountsManager {
 
 impl AccountsManager {
     // Constructors //
-    pub fn create(to_path: impl std::fmt::Display, map: DashMap<String, AccountRecord>) -> Self {
+    pub fn create(to_path: impl std::fmt::Display, map: HashMap<String, AccountRecord>) -> Self {
         let path: PathBuf = PathBuf::from(to_path.to_string());
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p)
@@ -85,8 +85,8 @@ impl AccountsManager {
                 .expect("Failed to create data file path! Double check write permissions.");
         }
 
-        let accounts: DashMap<String, AccountRecord> = if !path.exists() {
-            DashMap::new()
+        let accounts: HashMap<String, AccountRecord> = if !path.exists() {
+            HashMap::new()
         } else {
             let contents: String =
                 std::fs::read_to_string(&path).expect("Failed to read data file!");
@@ -143,7 +143,7 @@ impl AccountsManager {
             "Registering account {{ username: {}, password: {} }}",
             &record.username, &record.password_hash
         );
-        map.insert(record.username.clone(), record);
+        map.pin().insert(record.username.clone(), record);
     }
 
     /// Creates a new entry in the account registry with:
@@ -152,8 +152,8 @@ impl AccountsManager {
     ///    the password, and whether or not the account is an admin.
     pub fn register(&self, username: String, password: String, is_admin: bool) -> Result<()> {
         let salt = SaltString::generate(&mut OsRng);
-        let map_ref = self.accounts.clone();
-        let password_hash = if !map_ref.contains_key(&username) {
+        let map = self.accounts.clone();
+        let password_hash = if !map.pin().contains_key(&username) {
             Scrypt
                 .hash_password(password.as_bytes(), &salt)?
                 .to_string()
@@ -161,7 +161,7 @@ impl AccountsManager {
             tracing::error!("Failed to register already-registered account \"{username}\"!");
             bail!("Account already exists!")
         };
-        drop(map_ref); // drop the reference to prevent deadlocks during registration
+        drop(map); // drop our reference to map as next function will ref it
         let record: AccountRecord = AccountRecord {
             username,
             password_hash,
@@ -181,9 +181,10 @@ impl AccountsManager {
     /// be read into the password hash format, however this shouldn't happen in
     /// practice and most likely doesn't need to be accounted for.
     pub fn login(&self, username: &str, password: &str) -> Option<bool> {
-        let map = self.accounts.clone();
+        let amap = self.accounts.clone();
+        let map = amap.pin();
         let entry = map.get(username)?;
-        let hash = PasswordHash::new(entry.value().password_hash()).ok()?;
+        let hash = PasswordHash::new(entry.password_hash()).ok()?;
         Some(Scrypt.verify_password(password.as_bytes(), &hash).is_ok())
     }
 
