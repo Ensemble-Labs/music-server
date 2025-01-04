@@ -88,10 +88,10 @@ impl AccountsManager {
         }
 
         let accounts: HashMap<String, AccountRecord> = if !path.exists() {
-            HashMap::new()
+            HashMap::new() // if there's no file at path, make a new map
         } else {
             let contents: Vec<u8> = std::fs::read(&path).expect("Failed to read data file!");
-            pot::from_slice(contents.as_slice()).expect("Failed to deserialized account data file!")
+            pot::from_slice(contents.as_slice()).expect("Failed to deserialize account data file!")
         };
 
         let new: Self = Self {
@@ -183,7 +183,7 @@ impl AccountsManager {
     pub fn login(&self, username: &str, password: &str) -> Option<bool> {
         let amap = self.accounts.clone(); // obtain atomic reference to map
         let map = amap.pin(); // lock map's memory from being freed
-        let record = map.get(username)?;
+        let record = map.get(username)?; // Attempt to fetch record, returning None if not found
         let hash = PasswordHash::new(record.password_hash()).ok()?; // try parsing stored hash
         Some(Scrypt.verify_password(password.as_bytes(), &hash).is_ok())
     }
