@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 // Simple strong type around Uuid for clarity
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
-pub struct Token(Uuid);
+pub struct Token(pub Uuid);
 
 impl Token {
     pub fn generate() -> Self {
