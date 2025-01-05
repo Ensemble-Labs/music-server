@@ -25,3 +25,21 @@ where
         Self(StatusCode::BAD_REQUEST)
     }
 }
+
+/// Simple macro to reduce boilerplate of trying to get a header value as a [&str].
+/// Note that the calling function must return [BadRequestError] or [anyhow::Error]
+/// as the macro makes two separate try calls.
+///
+/// Example:
+/// ```rs
+/// pub async fn resp(headers: HeaderMap) -> Result<(), BadRequestError> {
+///     let username: &str = try_header!(headers["username"]);
+///     todo!();
+/// }
+/// ```
+#[macro_export]
+macro_rules! try_header {
+    ($i:ident[$h:literal]) => {
+        $i.get($h).ok_or(BadRequestError::default())?.to_str()?
+    };
+}

@@ -4,10 +4,12 @@ use axum::{
 };
 use serde::Deserialize;
 use tracing::debug;
+use uuid::Uuid;
 
 use crate::{
     auth::manager::Token,
     services::{AccountService, SessionService},
+    try_header,
 };
 
 use super::BadRequestError;
@@ -21,16 +23,10 @@ struct CreateAccount {
 
 pub async fn create_account(headers: HeaderMap, bytes: Bytes) -> Result<(), BadRequestError> {
     let request_info: CreateAccount = pot::from_slice(&bytes)?;
-    let username = headers
-        .get("username")
-        .ok_or(BadRequestError::default())?
-        .to_str()?;
-    let token = headers
-        .get("token")
-        .ok_or(BadRequestError::default())?
-        .to_str()?;
+    let username: &str = try_header!(headers["username"]);
+    let token: &str = try_header!(headers["auth-token"]);
 
-    if !SessionService.authenticate(username, &Token(uuid::Uuid::parse_str(token)?)) {
+    if !SessionService.authenticate(username, &Token(Uuid::parse_str(token)?)) {
         return Err(BadRequestError(StatusCode::UNAUTHORIZED));
     }
 
