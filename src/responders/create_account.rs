@@ -4,7 +4,6 @@ use axum::{
 };
 use serde::Deserialize;
 use tracing::debug;
-use uuid::Uuid;
 
 use crate::{
     auth::manager::Token,
@@ -14,6 +13,9 @@ use crate::{
 
 use super::BadRequestError;
 
+/// A data struct to represent the account information sent by the binary file.
+/// Any information received by this endpoint is expected to be encoded using
+/// the `pot` library in this specific struct format.
 #[derive(Deserialize)]
 struct CreateAccount {
     username: String,
@@ -21,12 +23,13 @@ struct CreateAccount {
     is_admin: bool,
 }
 
+/// The handler function for the `/create-account` endpoint.
 pub async fn create_account(headers: HeaderMap, bytes: Bytes) -> Result<(), BadRequestError> {
     let request_info: CreateAccount = pot::from_slice(&bytes)?;
     let username: &str = try_header!(headers["username"]);
     let token: &str = try_header!(headers["auth-token"]);
 
-    if !SessionService.authenticate(username, &Token(Uuid::parse_str(token)?)) {
+    if !SessionService.authenticate(username, &Token::try_from(token)?) {
         return Err(BadRequestError(StatusCode::UNAUTHORIZED));
     }
 

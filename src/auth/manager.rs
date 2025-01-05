@@ -15,6 +15,14 @@ impl Token {
     }
 }
 
+impl TryFrom<&str> for Token {
+    type Error = uuid::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Self(Uuid::parse_str(value)?))
+    }
+}
+
 /// global variable holding the singleton instance of [AuthManager].
 pub static SESSIONS: LazyLock<AuthManager> = LazyLock::new(AuthManager::start);
 
