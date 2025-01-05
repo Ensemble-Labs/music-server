@@ -20,6 +20,7 @@ pub mod types {
 
 // re-export all services for ease of use
 pub mod services {
+    pub use crate::auth::manager::SESSIONS as SessionService;
     pub use crate::config::CONFIG as Config;
     pub use crate::db::accounts::AccountService;
 }
