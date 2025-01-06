@@ -27,9 +27,9 @@ struct CreateAccount {
 pub async fn create_account(headers: HeaderMap, bytes: Bytes) -> Result<(), BadRequestError> {
     let request_info: CreateAccount = pot::from_slice(&bytes)?;
     let username: &str = try_header!(headers["username"]);
-    let token: &str = try_header!(headers["auth-token"]);
+    let token: Token = Token::try_from(try_header!(headers["auth-token"]))?;
 
-    if !SessionService.authenticate(username, &Token::try_from(token)?) {
+    if !SessionService.authenticate(username, token) {
         return Err(BadRequestError(StatusCode::UNAUTHORIZED));
     }
 
