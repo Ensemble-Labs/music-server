@@ -81,24 +81,19 @@ impl AuthManager {
     }
 
     // Methods //
-    /// Registers a given [AccountSession] into the global session table
-    /// by generating a new [Token] and returning it.
-    ///
-    /// TODO:
-    /// Check if account is already logged in, and if it is (and its session has
-    /// not expired), return None.
-    fn register_new_session(&self, session: AccountSession) -> Option<Token> {
+    /// Registers a given [AccountSession] into the global session table. This
+    /// method will return [true] if the account was successfully logged in, and [false]
+    /// if the account was already logged in and it's session has not yet expired.
+    fn register_new_session(&self, session: AccountSession) -> bool {
         let sessions = self.sessions.clone();
         let map = sessions.pin();
-        if !map.contains_key(session.record().username()) {
-            let token: Token = Token::generate();
-            self.sessions
-                .clone()
-                .pin()
-                .insert(session.record().username().to_owned(), session);
-            Some(token)
+        let name: &str = session.record().username();
+
+        if !map.contains_key(name) || map.get(name).unwrap().is_expired() {
+            map.insert(session.record().username().to_owned(), session);
+            true
         } else {
-            None
+            false
         }
     }
 
