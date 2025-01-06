@@ -9,7 +9,9 @@ use scrypt::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt::Display,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::{Arc, LazyLock, Mutex},
 };
 use tracing::{debug, trace};
@@ -49,7 +51,7 @@ crate::make_getters!(AccountRecord, username: String, password_hash: String, is_
 pub struct AccountsManager {
     path: PathBuf,
     dirty: Mutex<bool>,
-    accounts: Arc<HashMap<String, AccountRecord>>,
+    accounts: Arc<HashMap<String, Rc<AccountRecord>>>,
 }
 
 // Explicitly mark [AccountsManager] as thread-safe since all operations
@@ -63,9 +65,15 @@ impl AsRef<AccountsManager> for AccountsManager {
     }
 }
 
+pub enum LoginCode {
+    Success(Rc<AccountRecord>),
+    InvalidPassword,
+    AccountNotFound,
+}
+
 impl AccountsManager {
     // Constructors //
-    pub fn create(to_path: impl std::fmt::Display, map: HashMap<String, AccountRecord>) -> Self {
+    pub fn create(to_path: impl Display, map: HashMap<String, Rc<AccountRecord>>) -> Self {
         let path: PathBuf = PathBuf::from(to_path.to_string()); // convert generic parameter to [String]
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p) // make all necessary directories to create data file
@@ -87,7 +95,7 @@ impl AccountsManager {
                 .expect("Failed to create data file path! Double check write permissions.");
         }
 
-        let accounts: HashMap<String, AccountRecord> = if !path.exists() {
+        let accounts: HashMap<String, Rc<AccountRecord>> = if !path.exists() {
             HashMap::new() // if there's no file at path, make a new map
         } else {
             let contents: Vec<u8> = std::fs::read(&path).expect("Failed to read data file!");
@@ -127,7 +135,7 @@ impl AccountsManager {
                 "Registering account {{ username: {}, password: {} }}",
                 &record.username, &record.password_hash
             );
-            map.insert(record.username.clone(), record);
+            map.insert(record.username.clone(), Rc::new(record));
             Ok(())
         } else {
             bail!("Account already exists!")
@@ -143,7 +151,7 @@ impl AccountsManager {
             "Registering account {{ username: {}, password: {} }}",
             &record.username, &record.password_hash
         );
-        map.pin().insert(record.username.clone(), record);
+        map.pin().insert(record.username.clone(), Rc::new(record));
     }
 
     /// Creates a new entry in the account registry with:
@@ -180,12 +188,19 @@ impl AccountsManager {
     /// Note that this function can also return `None` if the password hash fails to
     /// be read into the password hash format, however this shouldn't happen in
     /// practice and most likely doesn't need to be accounted for.
-    pub fn login(&self, username: &str, password: &str) -> Option<bool> {
+    pub fn login(&self, username: &str, password: &str) -> LoginCode {
         let amap = self.accounts.clone(); // obtain atomic reference to map
         let map = amap.pin(); // lock map's memory from being freed
-        let record = map.get(username)?; // Attempt to fetch record, returning None if not found
-        let hash = PasswordHash::new(record.password_hash()).ok()?; // try parsing stored hash
-        Some(Scrypt.verify_password(password.as_bytes(), &hash).is_ok())
+        if let Some(record) = map.get(username).cloned() {
+            let hash = PasswordHash::new(record.password_hash()).unwrap(); // parse hash (should never fail)
+            if Scrypt.verify_password(password.as_bytes(), &hash).is_ok() {
+                LoginCode::Success(record)
+            } else {
+                LoginCode::InvalidPassword
+            }
+        } else {
+            LoginCode::AccountNotFound
+        }
     }
 
     pub fn is_dirty(&self) -> bool {
