@@ -30,6 +30,7 @@ pub static SESSIONS: LazyLock<AuthManager> = LazyLock::new(AuthManager::start);
 /// current session.
 pub struct AccountSession {
     record: AccountRecord,
+    token: Token,
     started: DateTime<Utc>,
     expires: DateTime<Utc>,
 }
@@ -37,6 +38,10 @@ pub struct AccountSession {
 impl AccountSession {
     pub fn record(&self) -> &AccountRecord {
         &self.record
+    }
+
+    pub fn token(&self) -> Token {
+        self.token
     }
 
     pub fn started(&self) -> DateTime<Utc> {
@@ -55,13 +60,11 @@ impl AccountSession {
 /// A global authentication manager which handles logging in users and
 /// authenticating their requests via session tokens. This struct uses
 /// UUID v4s as session tokens, which are issued upon a successful login and
-/// stored in the session map. A user authenticates themselves per-action
+/// stored in the account record. A user authenticates themselves per-action
 /// by providing their session token along with their username.
 pub struct AuthManager {
-    /// A hash table mapping session IDs to their respective account records.
-    sessions: Arc<HashMap<Token, AccountSession>>,
-    /// A hash table mapping logged-in users' names to their session IDs.
-    session_ids: Arc<HashMap<String, Token>>,
+    /// A hash table mapping usernames to their respective session instances.
+    sessions: Arc<HashMap<String, AccountSession>>,
 }
 
 // Mark types as safe to send since all methods use thread-safe
@@ -74,7 +77,6 @@ impl AuthManager {
     pub fn start() -> Self {
         Self {
             sessions: Arc::new(HashMap::new()),
-            session_ids: Arc::new(HashMap::new()),
         }
     }
 
@@ -85,19 +87,28 @@ impl AuthManager {
     /// TODO:
     /// Check if account is already logged in, and if it is (and its session has
     /// not expired), return None.
-    pub fn register_new_session(&self, session: AccountSession) -> Option<Token> {
-        let token: Token = Token::generate();
-        self.sessions.clone().pin().insert(token, session);
-        Some(token)
+    fn register_new_session(&self, session: AccountSession) -> Option<Token> {
+        let sessions = self.sessions.clone();
+        let map = sessions.pin();
+        if !map.contains_key(session.record().username()) {
+            let token: Token = Token::generate();
+            self.sessions
+                .clone()
+                .pin()
+                .insert(session.record().username().to_owned(), session);
+            Some(token)
+        } else {
+            None
+        }
     }
 
     /// Attempts to authenticate a user's credentials by ensuring they have the
     /// correct session token for their username.
-    pub fn authenticate(&self, username: &str, token: &Token) -> bool {
-        self.session_ids
+    pub fn authenticate(&self, username: &str, token: Token) -> bool {
+        self.sessions
             .clone()
             .pin()
             .get(username)
-            .is_some_and(|u| u == token)
+            .is_some_and(|u| u.token() == token)
     }
 }
