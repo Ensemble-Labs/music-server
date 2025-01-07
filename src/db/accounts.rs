@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
-    rc::Rc,
     sync::{Arc, LazyLock, Mutex},
 };
 use tracing::{debug, trace};
@@ -51,7 +50,7 @@ crate::make_getters!(AccountRecord, username: String, password_hash: String, is_
 pub struct AccountsManager {
     path: PathBuf,
     dirty: Mutex<bool>,
-    accounts: Arc<HashMap<String, Rc<AccountRecord>>>,
+    accounts: Arc<HashMap<String, Arc<AccountRecord>>>,
 }
 
 // Explicitly mark [AccountsManager] as thread-safe since all operations
@@ -66,14 +65,14 @@ impl AsRef<AccountsManager> for AccountsManager {
 }
 
 pub enum LoginCode {
-    Success(Rc<AccountRecord>),
+    Success(Arc<AccountRecord>),
     InvalidPassword,
     AccountNotFound,
 }
 
 impl AccountsManager {
     // Constructors //
-    pub fn create(to_path: impl Display, map: HashMap<String, Rc<AccountRecord>>) -> Self {
+    pub fn create(to_path: impl Display, map: HashMap<String, Arc<AccountRecord>>) -> Self {
         let path: PathBuf = PathBuf::from(to_path.to_string()); // convert generic parameter to [String]
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p) // make all necessary directories to create data file
@@ -95,7 +94,7 @@ impl AccountsManager {
                 .expect("Failed to create data file path! Double check write permissions.");
         }
 
-        let accounts: HashMap<String, Rc<AccountRecord>> = if !path.exists() {
+        let accounts: HashMap<String, Arc<AccountRecord>> = if !path.exists() {
             HashMap::new() // if there's no file at path, make a new map
         } else {
             let contents: Vec<u8> = std::fs::read(&path).expect("Failed to read data file!");
@@ -135,7 +134,7 @@ impl AccountsManager {
                 "Registering account {{ username: {}, password: {} }}",
                 &record.username, &record.password_hash
             );
-            map.insert(record.username.clone(), Rc::new(record));
+            map.insert(record.username.clone(), Arc::new(record));
             Ok(())
         } else {
             bail!("Account already exists!")
@@ -151,7 +150,7 @@ impl AccountsManager {
             "Registering account {{ username: {}, password: {} }}",
             &record.username, &record.password_hash
         );
-        map.pin().insert(record.username.clone(), Rc::new(record));
+        map.pin().insert(record.username.clone(), Arc::new(record));
     }
 
     /// Creates a new entry in the account registry with:
