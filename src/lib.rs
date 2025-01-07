@@ -15,7 +15,8 @@ mod struct_utils;
 
 // re-export commonly used types closer to crate root
 pub mod types {
-    pub use crate::db::accounts::AccountRecord;
+    pub use crate::auth::manager::{AccountSession, AuthCode};
+    pub use crate::db::accounts::{AccountRecord, LoginCode};
 }
 
 // re-export all services for ease of use
