@@ -2,6 +2,7 @@ use std::sync::{Arc, LazyLock};
 
 use crate::types::LoginCode;
 use crate::{services::AccountService, types::AccountRecord};
+use axum::response::IntoResponse;
 use chrono::{prelude::*, TimeDelta};
 use papaya::HashMap;
 use uuid::Uuid;
@@ -23,6 +24,18 @@ impl TryFrom<&str> for Token {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(Self(Uuid::parse_str(value)?))
+    }
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl IntoResponse for Token {
+    fn into_response(self) -> axum::response::Response {
+        self.to_string().into_response()
     }
 }
 
@@ -102,7 +115,12 @@ impl AuthManager {
         let map = sessions.pin();
         let name: &str = session.record().username();
 
+        tracing::debug!(?name, "attempting to register session");
         if !map.contains_key(name) || map.get(name).unwrap().is_expired() {
+            tracing::debug!(
+                "registered session for {name} with {}",
+                session.token().0.to_string()
+            );
             map.insert(name.to_owned(), session);
             true
         } else {

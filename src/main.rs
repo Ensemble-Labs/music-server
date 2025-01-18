@@ -40,7 +40,7 @@ async fn main() {
     // match sub-commands
     match args[0].as_str() {
         "run" => {
-            AccountService.verify(); // Load account service ahead of time
+            std::sync::LazyLock::force(&AccountService);
             let lock = Config.try_read().unwrap(); // gain a read lock over config temporarily
             let port: &str = lock.server().bind_address(); // obtain port to bind to from Config service
 
@@ -52,7 +52,8 @@ async fn main() {
                     "/create-account",
                     get(async || StatusCode::METHOD_NOT_ALLOWED), // explicitly disallow get requests as we need binary data
                 )
-                .route("/create-account", post(responders::create_account));
+                .route("/create-account", post(responders::create_account))
+                .route("/login", post(responders::login));
 
             std::thread::spawn(|| loop {
                 // spawn a separate thread to infinitely loop and save registry if necessary

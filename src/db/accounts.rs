@@ -205,10 +205,6 @@ impl AccountsManager {
     pub fn is_dirty(&self) -> bool {
         *self.dirty.lock().unwrap()
     }
-
-    /// This function does nothing. It exists only to force the lazy initialization
-    /// of the [LazyLock] holding the global [AccountsManager].
-    pub fn verify(&self) {}
 }
 
 /// # Why manually implement drop for this type?
