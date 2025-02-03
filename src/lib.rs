@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     pub fn bench_saving_accounts() {
-        AccountService.verify();
+        std::sync::LazyLock::force(&AccountService);
         let t: Instant = Instant::now();
         AccountService.save();
         println!("{:?}", t.elapsed());
