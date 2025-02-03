@@ -151,11 +151,14 @@ impl AuthManager {
 
     /// Attempts to authenticate a user's credentials by ensuring they have the
     /// correct session token for their username.
-    pub fn authenticate(&self, username: &str, token: Token) -> bool {
-        self.sessions
-            .clone()
-            .pin()
-            .get(username)
-            .is_some_and(|u| u.token() == token)
+    pub fn auth_get_session(&self, username: &str, token: Token) -> Option<Arc<AccountSession>> {
+        let map = self.sessions.clone();
+        let guard = map.pin();
+        let record = guard.get(username);
+        if record.is_some_and(|u| u.token() == token) {
+            Some(record.unwrap().clone())
+        } else {
+            None
+        }
     }
 }

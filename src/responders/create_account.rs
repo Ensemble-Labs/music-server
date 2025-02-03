@@ -29,19 +29,22 @@ pub async fn create_account(headers: HeaderMap, bytes: Bytes) -> Result<(), BadR
     let username: &str = try_header!(headers["username"]);
     let token: Token = Token::try_from(try_header!(headers["auth-token"]))?;
 
-    if !SessionService.authenticate(username, token) {
-        return Err(BadRequestError(StatusCode::UNAUTHORIZED));
+    if let Some(session) = SessionService.auth_get_session(username, token) {
+        if *session.record().is_admin() {
+            debug!(
+                "creating account {{ username: {}, password: {} }}",
+                &request_info.username, &request_info.password
+            );
+            AccountService.register(
+                request_info.username,
+                request_info.password,
+                request_info.is_admin,
+            )?;
+            Ok(())
+        } else {
+            Err(BadRequestError(StatusCode::UNAUTHORIZED))
+        }
+    } else {
+        Err(BadRequestError(StatusCode::NOT_FOUND))
     }
-
-    debug!(
-        "creating account {{ username: {}, password: {} }}",
-        &request_info.username, &request_info.password
-    );
-
-    AccountService.register(
-        request_info.username,
-        request_info.password,
-        request_info.is_admin,
-    )?;
-    Ok(())
 }
