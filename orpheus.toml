@@ -1,3 +1,0 @@
-[server]
-account_data_path = "/Users/tahirchaudhry/Development/Rust/music-server/data-db"
-bind_address = "0.0.0.0:31078"
