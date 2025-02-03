@@ -1,6 +1,10 @@
 mod create_account;
+mod login;
 use axum::{http::StatusCode, response::IntoResponse};
+
+// exports
 pub use create_account::create_account;
+pub use login::login;
 
 // A custom error type that will return bad request when returned.
 pub struct BadRequestError(StatusCode);
