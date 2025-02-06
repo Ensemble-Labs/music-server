@@ -6,7 +6,7 @@ use serde::Deserialize;
 use tracing::debug;
 
 use crate::{
-    auth::manager::Token,
+    service::auth::Token,
     services::{AccountService, SessionService},
     try_header,
 };

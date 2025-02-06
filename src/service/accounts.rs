@@ -43,6 +43,14 @@ pub struct AccountRecord {
     is_admin: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+struct AccountData {
+    // all fields commented out need their respective types to be
+    // implemented before they can be uncommented.
+    // playlists: UserPlaylists,
+    // stats: StatRecorder,
+}
+
 crate::make_getters!(AccountRecord, username: String, password_hash: String, is_admin: bool);
 
 /// A thread-safe in-memory account database. It is initialized by providing a path to

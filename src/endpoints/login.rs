@@ -1,5 +1,5 @@
 use super::BadRequestError;
-use crate::{auth::manager::Token, services::SessionService, try_header, types::AuthCode};
+use crate::{service::auth::Token, services::SessionService, try_header, types::AuthCode};
 
 use axum::http::{HeaderMap, StatusCode};
 

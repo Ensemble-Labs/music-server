@@ -13,7 +13,7 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, info, Level};
 // import exports defined in `src/lib.rs`:
 use orpheus::{
-    responders,
+    endpoints,
     services::{AccountService, Config},
 };
 
@@ -52,8 +52,8 @@ async fn main() {
                     "/create-account",
                     get(async || StatusCode::METHOD_NOT_ALLOWED), // explicitly disallow get requests as we need binary data
                 )
-                .route("/create-account", post(responders::create_account))
-                .route("/login", post(responders::login));
+                .route("/create-account", post(endpoints::create_account))
+                .route("/login", post(endpoints::login));
 
             std::thread::spawn(|| loop {
                 // spawn a separate thread to infinitely loop and save registry if necessary

@@ -2,10 +2,9 @@
 //! the crate's namespace, hold unit tests, andprovide utility functions/macros.
 
 // declare rust module tree
-pub mod auth;
 pub mod config;
-pub mod db;
-pub mod responders;
+pub mod endpoints;
+pub mod service;
 
 // `lib` folder module tree
 // here we use custom paths because for some reason rust believes the
@@ -15,15 +14,15 @@ mod struct_utils;
 
 // re-export commonly used types closer to crate root
 pub mod types {
-    pub use crate::auth::manager::{AccountSession, AuthCode};
-    pub use crate::db::accounts::{AccountRecord, LoginCode};
+    pub use crate::service::accounts::{AccountRecord, LoginCode};
+    pub use crate::service::auth::{AccountSession, AuthCode};
 }
 
 // re-export all services for ease of use
 pub mod services {
-    pub use crate::auth::manager::SESSIONS as SessionService;
     pub use crate::config::CONFIG as Config;
-    pub use crate::db::accounts::AccountService;
+    pub use crate::service::accounts::AccountService;
+    pub use crate::service::auth::SESSIONS as SessionService;
 }
 
 // unit testing
