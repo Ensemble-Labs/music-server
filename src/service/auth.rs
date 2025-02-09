@@ -1,3 +1,9 @@
+//! # Server Authentication
+//! This module provides functionality to authenticate user sessions. Note that
+//! actual user accounts (registration and management) is handled by the `accounts`
+//! module, not auth. The scope of this module is logging into a server, managing
+//! currently running sessions, and to verify details like user's permissions.
+
 use std::sync::{Arc, LazyLock};
 
 use crate::types::LoginCode;

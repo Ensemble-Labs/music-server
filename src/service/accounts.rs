@@ -1,5 +1,7 @@
-//! Module to manage the storage and retrieval of
-//! accounts to/from disk.
+//! # Server Accounts
+//! Manages the storage and retrieval of accounts to/from disk. This module
+//! focuses on loading the account database, registering/deleting accounts,
+//! and saving the database back to file.
 
 use anyhow::{bail, Result};
 use papaya::HashMap;
