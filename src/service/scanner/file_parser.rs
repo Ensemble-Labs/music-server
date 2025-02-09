@@ -1,6 +1,5 @@
 use std::{ffi::OsString, path::Path};
 
-use thiserror::Error;
 use tracing::warn;
 
 /// Internal struct that holds the results of a parsed song name. This is
@@ -37,13 +36,7 @@ fn file_extension(path: &str) -> Option<&str> {
     None
 }
 
-#[derive(Error, Debug)]
-pub enum SongParseError {
-    #[error("Failed to read song directory!")]
-    ReadFailed(#[from] std::io::Error),
-}
-
-pub fn scan_dir(dir: &Path) -> Result<(), SongParseError> {
+pub fn scan_dir(dir: &Path) -> std::io::Result<()> {
     for entry in dir.read_dir()? {
         let file_name: OsString = entry?.file_name();
         // overshadow the name `file_name`
