@@ -1,6 +1,5 @@
-use std::{ffi::OsString, path::Path};
-
-use tracing::warn;
+use std::{ffi::OsString, io, path::Path};
+use id3::{Tag, TagLike, Timestamp};
 
 /// Internal struct that holds the results of a parsed song name. This is
 /// different from [Song], as that represents a song in the server's
@@ -8,53 +7,52 @@ use tracing::warn;
 /// contrast, this struct simply stores the result of trying to guess song
 /// data from a string name. This may not always be 100% accurate.
 #[derive(Default, Debug)]
-struct ParseSong {
+pub struct ParsedSong {
     year: usize,
     name: String,
     artist: String,
     features: Vec<String>,
 }
 
-/// Parses a single file name and tries to extract basic song data from it
-/// that can be used for MusicBrainz matching.
-#[cfg(target_os = "none")] // musicbrainz matching comes later
-fn try_parse_song(raw: &str) -> Option<ParseSong> {
-    let mut found_year = false;
-    let mut year = 0;
-    let mut data: ParseSong = ParseSong::default();
-    todo!()
-}
+pub fn scan_dir(dir: &Path) -> io::Result<Vec<ParsedSong>> {
+    let mut result: Vec<ParsedSong> = Vec::new();
 
-/// Small private function to obtain the file extension of a string.
-fn file_extension(path: &str) -> Option<&str> {
-    let max: usize = path.len() - 1; // avoid repeated calls to len
-    for (i, c) in path.chars().enumerate() {
-        if c == '.' && i != max {
-            return Some(&path[(i + 1)..]);
-        }
-    }
-    None
-}
-
-pub fn scan_dir(dir: &Path) -> std::io::Result<()> {
     for entry in dir.read_dir()? {
-        let file_name: OsString = entry?.file_name();
-        // overshadow the name `file_name`
-        let Some(file_name) = file_name.to_str() else {
-            warn!(?file_name, "Failed to decode file name into UTF-8!");
-            continue;
-        };
+        let entry = entry?;
+        let file_name: OsString = entry.file_name();
+        let path = entry.path();
 
-        if let Some(ext) = file_extension(file_name) {
-            match ext {
-                "mp3" => todo!("mp3 tag reader"),
-                "mp4" | "m4a" => todo!("mp4 tag reader"),
-                "flac" => todo!("flac tag reader"),
-                _ => tracing::warn!(?ext, "Unrecognized file extension."),
-            }
-        } else {
-            warn!(?file_name, "File is missing an extension!");
+        if let Some(parsed_song) = parse_local_id3(&path) {
+            // result.push(parsed_song);
         }
     }
-    todo!()
+
+    Ok(result)
+}
+
+struct PartialID3Parse {
+    title: Option<String>,
+    artist: Option<String>,
+    artists: Option<Vec<String>>,
+    album: Option<String>,
+    date: Option<Timestamp>,
+    duration: Option<u32>,
+    genre: Option<String>,
+}
+
+/// Parsing stage 1
+/// Local tags are prioritized above all other parsed information.
+fn parse_local_id3(path: &Path) -> Option<PartialID3Parse> {
+    let tag: Tag = Tag::read_from_path(path).ok()?;
+    Some(
+        PartialID3Parse {
+            title: tag.title().map(|s| s.to_string()),
+            artist: tag.artist().map(|s| s.to_string()),
+            artists: tag.artists().map(|s| s.iter().map(|s| s.to_string()).collect()),
+            album: tag.album().map(|s| s.to_string()),
+            date: tag.date_released(),
+            duration: tag.duration(),
+            genre: tag.genre_parsed().map(|s| s.to_string()),
+        }
+    )
 }

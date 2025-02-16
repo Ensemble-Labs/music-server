@@ -12,4 +12,6 @@
 
 mod file_parser;
 mod matcher;
+mod chromaprint;
+
 pub use matcher::{Album, Artist, Song};
